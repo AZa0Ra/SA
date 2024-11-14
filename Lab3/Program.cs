@@ -8,81 +8,98 @@ namespace Lab3
 {
     internal class Program
     {
-        static void Main()
-        {
-            double[,] table = {
-            { 1, 2, 3, 5, 6, 8 },
-            { 0.5, 1, 2, 3, 4, 6 },
-            { 0.33, 0.5, 1, 2, 3, 5 },
-            { 0.2, 0.33, 0.5, 1, 2, 4 },
-            { 0.17, 0.25, 0.33, 0.5, 1, 3 },
-            { 0.13, 0.17, 0.2, 0.25, 0.33, 1 }
+        public const int T_START = 0;
+        public const int T_MAX = 6;
+        public const double STEP = 0.5;
+        public const int SITUATIONS = 4;
+        public const int FACTORS = 7;
+
+        public static List<double> TIME = Calculate.CalculateTime();
+
+        public static readonly double[,] ALPHA_HAT = {
+            {0.5, 0.6, 0.65, 0.5, 0, 0.7, 0.6},
+            {0, 0, 0.6, 0.7, 0, 0, 0.4},
+            {0, 0, 0.7, 0.7, 0.4, 0.55, 0.65},
+            {0, 0, 0.75, 0.6, 0.4, 0.5, 0}
         };
 
-            int rowCount = table.GetLength(0);
-            int colCount = table.GetLength(1);
+        public static readonly double[,] IP_HAT = {
+            {0.6, 0.7, 0.4, 0.8, 0, 0.7, 0.6},
+            {0, 0, 0.5, 0.6, 0, 0, 0.5},
+            {0, 0, 0.4, 0.4, 0.4, 0.8, 0.6},
+            {0, 0, 0.6, 0.3, 0.35, 0.6, 0}
+        };
 
-            double[] Vi = new double[rowCount];
-            Console.WriteLine("Vi values:");
-            for (int i = 0; i < rowCount; i++)
-            {
-                Vi[i] = GeometricMean(table, i);
-                Console.WriteLine($"Vi[{i + 1}] = {Vi[i]:F2}");
-            }
+        public static readonly double[,] ID_HAT = {
+            {0.7, 0.8, 0.4, 0.7, 0, 0.7, 0.7},
+            {0, 0, 0.3, 0.8, 0, 0, 0.8},
+            {0, 0, 0.3, 0.8, 0.4, 0.6, 0.6},
+            {0, 0, 0.5, 0.7, 0.3, 0.7, 0}
+        };
 
-            double totalVi = Vi.Sum();
-            Console.WriteLine($"\nSum Vi values:\n{totalVi:F2}");
-            double[] Pi = Vi.Select(v => v / totalVi).ToArray();
-
-            Console.WriteLine("\nPi values:");
-            for (int i = 0; i < Pi.Length; i++)
-            {
-                Console.WriteLine($"Pi[{i + 1}] = {Pi[i]:F2}");
-            }
-
-            double[] En1 = new double[rowCount];
-            Console.WriteLine("\nEn1 values:");
-            for (int i = 0; i < rowCount; i++)
-            {
-                En1[i] = 0;
-                for (int j = 0; j < colCount; j++)
-                {
-                    En1[i] += table[i, j] * Pi[j];
-                }
-                Console.WriteLine($"En1[{i + 1}] = {En1[i]:F6}"); 
-            }
-
-            double[] En2 = new double[rowCount];
-            Console.WriteLine("\nEn2 values:");
-            for (int i = 0; i < rowCount; i++)
-            {
-                En2[i] = En1[i] / Pi[i];
-                Console.WriteLine($"En2[{i + 1}] = {En2[i]:F6}"); 
-            }
-
-
-            double yMax = En2.Average();
-            Console.WriteLine($"\nyMax = {yMax:F6}");
-
-            double UI = (yMax - rowCount) / (rowCount - 1);
-            Console.WriteLine($"\nUI = {UI:F6}");
-
-            double WI = 1.24;
-            Console.WriteLine($"WI = {WI}");
-
-            double WU = UI / WI;
-            Console.WriteLine($"\nWU = {WU:F6}");
-        }
-
-        static double GeometricMean(double[,] matrix, int row)
+        public static readonly double[,] IT_HAT = {
+            {0.8, 0.8, 0.6, 0.8, 0, 0.8, 0.9},
+            {0, 0, 0.7, 0.9, 0, 0, 0.6},
+            {0, 0, 0.5, 0.8, 0.5, 0.7, 0.75},
+            {0, 0, 0.8, 0.75, 0.55, 0.8, 0}
+        };
+        static void Main(string[] args)
         {
-            int colCount = matrix.GetLength(1);
-            double product = 1.0;
-            for (int j = 0; j < colCount; j++)
+            double[,] gamma = Calculate.CalculateABY(Calculate.CalculateY, new double[3, 3]);
+            double[,] alpha = Calculate.CalculateABY(Calculate.CalculateA, gamma);
+            double[,] beta = Calculate.CalculateABY(Calculate.CalculateB, gamma);
+
+            Console.WriteLine("Alpha");
+            Calculate.OutputArray(alpha);
+            Console.WriteLine("Beta");
+            Calculate.OutputArray(beta);
+            Console.WriteLine("Gamma");
+            Calculate.OutputArray(gamma);
+            List<double[,]> ip_S = new List<double[,]>();
+            List<double[,]> id_S = new List<double[,]>();
+            List<double[,]> it_S = new List<double[,]>();
+            List<double[,]> probability = new List<double[,]>();
+            List<double[,]> results = new List<double[,]>();
+
+            for (int index = 0; index < SITUATIONS; index++)
             {
-                product *= matrix[row, j];
+                ip_S.Add(Calculate.CalculateIpdt((row, col, time) =>
+                {
+                    double value = 10 * IP_HAT[row, col] * (Math.Log10(1 + alpha[row, col]) * Math.Pow(time + 1, 2));
+                    return Calculate.CheckStrictCondition(value) ? value : 1;
+                }, index));
+
+                id_S.Add(Calculate.CalculateIpdt((row, col, time) =>
+                {
+                    double value = (Math.Pow(1 + 0.5 * beta[row, col] + gamma[row, col], 2)) / (Math.Pow(1 + ID_HAT[row, col], 2) + 0.4 * alpha[row, col]);
+                    return Calculate.CheckStrictCondition(value) ? value : 1;
+                }, index ));
+
+                it_S.Add(Calculate.CalculateIpdt((row, col, time) =>
+                {
+                    double value = 0.05 * IT_HAT[row,col] * ((2 + Math.Pow(10, -2) * alpha[row, col]) * (1- 3 * beta[row, col] * time));
+                    return Calculate.CheckStrictCondition(value) ? value : 1;
+                }, index));
+
+                probability.Add(Calculate.CalculateProbability(alpha, index, ip_S[index], id_S[index], it_S[index], beta, gamma));
+
+                Console.WriteLine("\nIP_S" + (index + 1));
+                Calculate.OutputArray(ip_S[index]);
+
+                Console.WriteLine("\nID_S" + (index + 1));
+                Calculate.OutputArray(id_S[index]);
+
+                Console.WriteLine("\nIT_S" + (index + 1));
+                Calculate.OutputArray(it_S[index]);
+
+                Console.WriteLine("\nProbability" + (index + 1));
+                Calculate.OutputArray(probability[index]);
+
+                results.Add(Calculate.CalculateResults(0, 1, 1, probability[index]));
+
+                Console.WriteLine("\nResults" + (index + 1));
+                Calculate.OutputArray(results[index]);
             }
-            return Math.Pow(product, 1.0 / colCount);
         }
     }
 }
